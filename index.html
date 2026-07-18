@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电商数据可视化分析面板</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script src="assets/vendor/echarts.min.js"></script>
+  <script src="assets/vendor/papaparse.min.js"></script>
+  <script src="assets/vendor/xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- 左侧导航栏 -->
+  <aside class="sidebar">
+    <div class="side-brand">
+      <span class="logo">📊</span>
+      <div class="side-brand-txt">
+        <div class="side-title">电商数据看板</div>
+        <div class="side-sub">E-Commerce Analytics</div>
+      </div>
+    </div>
+
+    <nav class="side-nav">
+      <a class="active" data-target="sec-overview"><span class="ico">📊</span><span>概览</span></a>
+      <a data-target="sec-category"><span class="ico">🥧</span><span>品类分析</span></a>
+      <a data-target="sec-region"><span class="ico">🗺️</span><span>地区分布</span></a>
+      <a data-target="sec-products"><span class="ico">🛍️</span><span>商品分析</span></a>
+      <a data-target="sec-customer"><span class="ico">👥</span><span>客户与配送</span></a>
+      <a data-target="sec-table"><span class="ico">📋</span><span>数据明细</span></a>
+    </nav>
+
+    <div class="side-foot">
+      <label class="upload-btn" title="上传 CSV / Excel 数据进行分析">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden />
+        <span>⬆ 上传数据</span>
+      </label>
+      <button id="themeBtn" class="side-theme" title="切换明暗主题">🌙 暗色模式</button>
+    </div>
+  </aside>
+
+  <!-- 主内容区 -->
+  <div class="content">
+    <header class="topbar">
+      <div class="topbar-left"></div>
+      <div class="topbar-center">
+        <h1>电商数据可视化分析面板</h1>
+        <p id="datasetMeta" class="sub">加载中…</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="loadSampleBtn" class="ghost-btn" title="重新加载内置示例数据">示例数据</button>
+        <button id="exportBtn" class="ghost-btn" title="导出当前筛选结果为 CSV">导出 CSV</button>
+      </div>
+    </header>
+
+    <div id="dropOverlay" class="drop-overlay">
+      <div class="drop-inner">📥 松开鼠标，上传 CSV / Excel 文件</div>
+    </div>
+
+    <!-- 字段映射弹窗 -->
+    <div id="mappingModal" class="modal hidden">
+      <div class="modal-card">
+        <h3>字段映射确认</h3>
+        <p class="modal-desc">系统已自动识别字段，如有偏差可手动调整。右侧"不使用"表示忽略该列。</p>
+        <div id="mappingGrid" class="mapping-grid"></div>
+        <div class="modal-actions">
+          <button id="mappingCancel" class="ghost-btn">取消</button>
+          <button id="mappingOk" class="primary-btn">应用并分析</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 全局筛选器 -->
+    <section class="filters">
+      <div class="filter-group">
+        <label>时间范围</label>
+        <div class="date-range">
+          <input type="date" id="dateStart" />
+          <span>~</span>
+          <input type="date" id="dateEnd" />
+        </div>
+      </div>
+      <div class="filter-group grow">
+        <label>地区</label>
+        <div id="regionChips" class="chips"></div>
+      </div>
+      <div class="filter-group grow">
+        <label>品类</label>
+        <div id="categoryChips" class="chips"></div>
+      </div>
+      <div class="filter-group grow">
+        <label>客户细分</label>
+        <div id="segmentChips" class="chips"></div>
+      </div>
+      <div class="filter-group">
+        <label>搜索（客户/商品）</label>
+        <input type="text" id="searchInput" class="search-box" placeholder="输入关键词…" />
+      </div>
+      <button id="resetBtn" class="ghost-btn reset">重置</button>
+    </section>
+
+    <main class="main">
+      <!-- 概览 -->
+      <section class="sec" id="sec-overview">
+        <div class="sec-head"><span class="sec-ico">📊</span><h2>概览 · 核心指标</h2></div>
+        <div id="kpiRow" class="kpi-row"></div>
+        <div class="grid">
+          <section class="card span-12" data-requires="orderDate">
+            <div class="card-head">
+              <h3>销售 &amp; 利润趋势</h3>
+              <div class="card-tools">
+                <select id="trendGran" class="mini-select">
+                  <option value="month">按月</option>
+                  <option value="quarter">按季</option>
+                  <option value="year">按年</option>
+                </select>
+                <button class="seg-btn active" data-trend="line">折线</button>
+                <button class="seg-btn" data-trend="bar">柱状</button>
+              </div>
+            </div>
+            <div id="chartTrend" class="chart"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 品类分析 -->
+      <section class="sec" id="sec-category">
+        <div class="sec-head"><span class="sec-ico">🥧</span><h2>品类分析</h2></div>
+        <div class="grid">
+          <section class="card span-6" data-requires="category">
+            <div class="card-head">
+              <h3>品类销售占比</h3>
+              <div class="card-tools">
+                <button class="seg-btn active" data-cat="pie">饼图</button>
+                <button class="seg-btn" data-cat="treemap">矩形树</button>
+              </div>
+            </div>
+            <div id="chartCategory" class="chart"></div>
+          </section>
+          <section class="card span-6" data-requires="subCategory">
+            <div class="card-head"><h3>子品类利润排行 <span class="hint">（红色为亏损）</span></h3></div>
+            <div id="chartSubcat" class="chart"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 地区分布 -->
+      <section class="sec" id="sec-region">
+        <div class="sec-head"><span class="sec-ico">🗺️</span><h2>地区分布</h2></div>
+        <div class="grid">
+          <section class="card span-6" data-requires="region">
+            <div class="card-head"><h3>各地区销售额 <span class="hint">（点击柱子可筛选）</span></h3></div>
+            <div id="chartRegion" class="chart"></div>
+          </section>
+          <section class="card span-6" data-requires="region,orderDate">
+            <div class="card-head"><h3>地区 × 月份 销售堆叠</h3></div>
+            <div id="chartHeatmap" class="chart"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 商品分析 -->
+      <section class="sec" id="sec-products">
+        <div class="sec-head"><span class="sec-ico">🛍️</span><h2>商品分析</h2></div>
+        <div class="grid">
+          <section class="card span-6" data-requires="product">
+            <div class="card-head"><h3>Top 10 商品 <span class="hint">（点击筛选）</span></h3></div>
+            <div id="chartTopProducts" class="chart"></div>
+          </section>
+          <section class="card span-6" data-requires="discount,profit">
+            <div class="card-head"><h3>折扣 — 利润关系 <span class="hint">（点选散点查看）</span></h3></div>
+            <div id="chartScatter" class="chart"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 客户与配送 -->
+      <section class="sec" id="sec-customer">
+        <div class="sec-head"><span class="sec-ico">👥</span><h2>客户与配送</h2></div>
+        <div class="grid">
+          <section class="card span-6" data-requires="segment">
+            <div class="card-head"><h3>客户细分占比</h3></div>
+            <div id="chartSegment" class="chart"></div>
+          </section>
+          <section class="card span-6" data-requires="shipMode">
+            <div class="card-head"><h3>配送方式分布</h3></div>
+            <div id="chartShip" class="chart"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 数据明细 -->
+      <section class="sec" id="sec-table">
+        <div class="sec-head"><span class="sec-ico">📋</span><h2>数据明细</h2></div>
+        <div class="card span-12">
+          <div class="card-head">
+            <h3>明细列表 <span class="hint">（当前筛选结果，最多显示 200 行，点击表头排序）</span></h3>
+          </div>
+          <div id="dataTable" class="table-wrap"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>纯前端实现 · ECharts 可视化 · 支持 CSV / Excel 上传与实时联动分析</span>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="data/sample.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

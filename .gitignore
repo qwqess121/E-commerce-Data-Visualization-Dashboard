@@ -1,0 +1,14 @@
+# WorkBuddy 项目私有数据，不入库
+.workbuddy/
+
+# 依赖 / 构建产物
+node_modules/
+dist/
+build/
+
+# 系统 / 临时
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+.cache/
